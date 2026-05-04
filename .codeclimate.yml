@@ -15,7 +15,6 @@ plugins:
     # https://docs.codeclimate.com/docs/advanced-configuration#section-exclude-patterns
     exclude_patterns:
       - "documentation/**/images/"
-      - "cfg/id_rsa.enc"
       - "**/testdata/**"
   fixme:
     enabled: true
