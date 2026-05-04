@@ -70,6 +70,7 @@ func Execute() {
 	rootCmd.AddCommand(ReadPipelineEnv())
 	rootCmd.AddCommand(CheckStepActiveCommand())
 	rootCmd.AddCommand(ShellExecuteCommand())
+	rootCmd.AddCommand(InitGithubActionsCommand())
 
 	addRootFlags(rootCmd)
 

@@ -1,0 +1,14 @@
+general:
+  # AAKaaS endpoint — set via PIPER_abapAddonAssemblyKitCookie secret, not here
+  abapAddonAssemblyKitEndpoint: "https://aakaas.example.com"
+
+steps:
+  abapEnvironmentCloneGitRepo:
+    repositories: {{ .Repositories }}
+
+  abapEnvironmentRunATCCheck:
+    atcConfig: atcConfig.yml
+    # host, client are read from the service key stored in commonPipelineEnvironment
+
+  abapEnvironmentRunAUnitTest:
+    aUnitConfig: aUnitConfig.yml

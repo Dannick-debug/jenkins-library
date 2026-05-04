@@ -1,0 +1,39 @@
+name: ABAP Environment Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  abap-pipeline:
+    uses: SAP/jenkins-library/.github/workflows/abapEnvironmentPipeline.yml@main
+    with:
+      addonDescriptorFileName: {{ .AddonDescriptorFileName }}
+      repositories: {{ .Repositories }}
+{{- if .CfApiEndpoint }}
+      cfApiEndpoint: {{ .CfApiEndpoint }}
+      cfOrg: {{ .CfOrg }}
+      cfSpace: {{ .CfSpace }}
+{{- end }}
+{{- if .BtpSubaccountId }}
+      btpSubaccountId: {{ .BtpSubaccountId }}
+      btpServicePlan: {{ .BtpServicePlan }}
+{{- end }}
+      confirmEnvironment: {{ .ConfirmEnvironment }}
+      stage_atc: true
+      stage_aunit: true
+      stage_integrationTest: false
+      stage_confirm: true
+    secrets:
+      PIPER_abapAddonAssemblyKitCookie: {{ "{{" }} secrets.PIPER_ABAP_ADDON_ASSEMBLY_KIT_COOKIE {{ "}}" }}
+      PIPER_user: {{ "{{" }} secrets.PIPER_USER {{ "}}" }}
+      PIPER_password: {{ "{{" }} secrets.PIPER_PASSWORD {{ "}}" }}
+{{- if .CfApiEndpoint }}
+      PIPER_cfUser: {{ "{{" }} secrets.PIPER_CF_USER {{ "}}" }}
+      PIPER_cfPassword: {{ "{{" }} secrets.PIPER_CF_PASSWORD {{ "}}" }}
+{{- end }}
+{{- if .BtpSubaccountId }}
+      PIPER_btpApiCredentialsId: {{ "{{" }} secrets.PIPER_BTP_API_CREDENTIALS_ID {{ "}}" }}
+{{- end }}

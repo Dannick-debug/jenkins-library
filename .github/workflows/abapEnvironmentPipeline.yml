@@ -1,0 +1,588 @@
+name: ABAP Environment Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      # ── Required ──────────────────────────────────────────────────────────────
+      addonDescriptorFileName:
+        description: Path to the Add-on Descriptor file (addon.yml)
+        required: true
+        type: string
+
+      # ── Repositories ──────────────────────────────────────────────────────────
+      repositories:
+        description: Path to the repositories.yml file
+        required: false
+        type: string
+        default: repositories.yml
+
+      # ── Provisioning: BTP path ─────────────────────────────────────────────
+      btpSubaccountId:
+        description: BTP subaccount ID (BTP provisioning path)
+        required: false
+        type: string
+      btpServicePlan:
+        description: BTP ABAP service plan (BTP provisioning path)
+        required: false
+        type: string
+
+      # ── Provisioning: Cloud Foundry path ───────────────────────────────────
+      cfApiEndpoint:
+        description: Cloud Foundry API endpoint (CF provisioning path)
+        required: false
+        type: string
+      cfOrg:
+        description: Cloud Foundry organisation (CF provisioning path)
+        required: false
+        type: string
+      cfSpace:
+        description: Cloud Foundry space (CF provisioning path)
+        required: false
+        type: string
+
+      # ── Stage toggles ──────────────────────────────────────────────────────
+      stage_initialChecks:
+        description: Run the Initial Checks stage
+        required: false
+        type: boolean
+        default: true
+      stage_prepareSystem:
+        description: Run the Prepare System stage
+        required: false
+        type: boolean
+        default: true
+      stage_cloneRepositories:
+        description: Run the Clone Repositories stage
+        required: false
+        type: boolean
+        default: true
+      stage_atc:
+        description: Run the ATC Check stage
+        required: false
+        type: boolean
+        default: true
+      stage_aunit:
+        description: Run the AUnit Test stage
+        required: false
+        type: boolean
+        default: true
+      stage_build:
+        description: Run the Build stage
+        required: false
+        type: boolean
+        default: true
+      stage_integrationTest:
+        description: Run the Integration Tests stage
+        required: false
+        type: boolean
+        default: false
+      stage_confirm:
+        description: Require manual confirmation before publishing
+        required: false
+        type: boolean
+        default: true
+      stage_publish:
+        description: Run the Publish stage
+        required: false
+        type: boolean
+        default: true
+
+      # ── Confirm gate ──────────────────────────────────────────────────────
+      confirmEnvironment:
+        description: GitHub Environment name used for the manual Confirm gate (must have required reviewers configured)
+        required: false
+        type: string
+        default: production
+
+    secrets:
+      # AAKaaS authentication cookie
+      PIPER_abapAddonAssemblyKitCookie:
+        required: true
+      # ABAP system credentials (used by abapEnvironment* steps)
+      PIPER_user:
+        required: true
+      PIPER_password:
+        required: true
+      # Cloud Foundry credentials (required for CF provisioning path)
+      PIPER_cfUser:
+        required: false
+      PIPER_cfPassword:
+        required: false
+      # BTP credentials (required for BTP provisioning path)
+      PIPER_btpApiCredentialsId:
+        required: false
+
+# ── Shared job defaults ──────────────────────────────────────────────────────
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 0 – Init
+  # Resolves stage configuration and initialises the shared pipeline environment.
+  # ────────────────────────────────────────────────────────────────────────────
+  init:
+    name: Init
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Init run stage configuration
+        run: ./piper initRunStageConfiguration
+        env:
+          PIPER_addonDescriptorFileName: ${{ inputs.addonDescriptorFileName }}
+
+      - name: Upload pipeline environment
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 1 – Initial Checks
+  # ────────────────────────────────────────────────────────────────────────────
+  initial-checks:
+    name: Initial Checks
+    needs: init
+    if: ${{ inputs.stage_initialChecks }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapAddonAssemblyKitCheck
+        run: ./piper abapAddonAssemblyKitCheck
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+          PIPER_addonDescriptorFileName: ${{ inputs.addonDescriptorFileName }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 2 – Prepare System
+  # Provisions the transient ABAP system (BTP or CF path).
+  # ────────────────────────────────────────────────────────────────────────────
+  prepare-system:
+    name: Prepare System
+    needs: initial-checks
+    if: ${{ !failure() && !cancelled() && inputs.stage_prepareSystem }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      # BTP path
+      - name: btpCreateServiceInstance
+        if: ${{ inputs.btpSubaccountId != '' }}
+        run: ./piper btpCreateServiceInstance
+        env:
+          PIPER_btpApiCredentialsId: ${{ secrets.PIPER_btpApiCredentialsId }}
+          PIPER_subaccountId: ${{ inputs.btpSubaccountId }}
+          PIPER_serviceInstanceName: abap-${{ github.run_id }}
+
+      - name: btpCreateServiceBinding
+        if: ${{ inputs.btpSubaccountId != '' }}
+        run: ./piper btpCreateServiceBinding
+        env:
+          PIPER_btpApiCredentialsId: ${{ secrets.PIPER_btpApiCredentialsId }}
+          PIPER_subaccountId: ${{ inputs.btpSubaccountId }}
+          PIPER_serviceInstanceName: abap-${{ github.run_id }}
+
+      # CF path
+      - name: abapEnvironmentCreateSystem
+        if: ${{ inputs.cfApiEndpoint != '' }}
+        run: ./piper abapEnvironmentCreateSystem
+        env:
+          PIPER_cfUser: ${{ secrets.PIPER_cfUser }}
+          PIPER_cfPassword: ${{ secrets.PIPER_cfPassword }}
+          PIPER_cfApiEndpoint: ${{ inputs.cfApiEndpoint }}
+          PIPER_cfOrg: ${{ inputs.cfOrg }}
+          PIPER_cfSpace: ${{ inputs.cfSpace }}
+
+      - name: cloudFoundryCreateServiceKey
+        if: ${{ inputs.cfApiEndpoint != '' }}
+        run: ./piper cloudFoundryCreateServiceKey
+        env:
+          PIPER_cfUser: ${{ secrets.PIPER_cfUser }}
+          PIPER_cfPassword: ${{ secrets.PIPER_cfPassword }}
+          PIPER_cfApiEndpoint: ${{ inputs.cfApiEndpoint }}
+          PIPER_cfOrg: ${{ inputs.cfOrg }}
+          PIPER_cfSpace: ${{ inputs.cfSpace }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 3 – Clone Repositories
+  # ────────────────────────────────────────────────────────────────────────────
+  clone-repositories:
+    name: Clone Repositories
+    needs: prepare-system
+    if: ${{ !failure() && !cancelled() && inputs.stage_cloneRepositories }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapEnvironmentCloneGitRepo
+        run: ./piper abapEnvironmentCloneGitRepo
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+          PIPER_repositories: ${{ inputs.repositories }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 4 – ATC Check  (parallel with AUnit)
+  # ────────────────────────────────────────────────────────────────────────────
+  atc:
+    name: ATC Check
+    needs: clone-repositories
+    if: ${{ !failure() && !cancelled() && inputs.stage_atc }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapEnvironmentRunATCCheck
+        run: ./piper abapEnvironmentRunATCCheck
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 4 – AUnit Tests  (parallel with ATC)
+  # ────────────────────────────────────────────────────────────────────────────
+  aunit:
+    name: AUnit Tests
+    needs: clone-repositories
+    if: ${{ !failure() && !cancelled() && inputs.stage_aunit }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapEnvironmentRunAUnitTest
+        run: ./piper abapEnvironmentRunAUnitTest
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 5 – Build
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: [atc, aunit]
+    # Run if atc/aunit were skipped (via inputs) or succeeded — not if they failed
+    if: |
+      !failure() && !cancelled() && inputs.stage_build &&
+      (needs.atc.result == 'success' || needs.atc.result == 'skipped') &&
+      (needs.aunit.result == 'success' || needs.aunit.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapAddonAssemblyKitReserveNextPackages
+        run: ./piper abapAddonAssemblyKitReserveNextPackages
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+          PIPER_addonDescriptorFileName: ${{ inputs.addonDescriptorFileName }}
+
+      - name: abapEnvironmentAssemblePackages
+        run: ./piper abapEnvironmentAssemblePackages
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      - name: abapEnvironmentAssembleConfirm
+        run: ./piper abapEnvironmentAssembleConfirm
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      - name: abapAddonAssemblyKitRegisterPackages
+        run: ./piper abapAddonAssemblyKitRegisterPackages
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+
+      - name: abapAddonAssemblyKitReleasePackages
+        run: ./piper abapAddonAssemblyKitReleasePackages
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 6 – Integration Tests  (optional)
+  # ────────────────────────────────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    needs: build
+    if: ${{ !failure() && !cancelled() && inputs.stage_integrationTest }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapEnvironmentRunATCCheck (integration)
+        run: ./piper abapEnvironmentRunATCCheck
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 7 – Confirm  (manual gate)
+  # The job blocks until a reviewer approves in the GitHub Environment.
+  # ────────────────────────────────────────────────────────────────────────────
+  confirm:
+    name: Confirm
+    needs: [build, integration-tests]
+    if: |
+      !failure() && !cancelled() && inputs.stage_confirm &&
+      (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.confirmEnvironment }}
+    steps:
+      - name: Awaiting approval
+        run: echo "Pipeline approved — proceeding to Publish."
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 8 – Publish
+  # ────────────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish
+    needs: confirm
+    if: |
+      !failure() && !cancelled() && inputs.stage_publish &&
+      (needs.confirm.result == 'success' || needs.confirm.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+
+      - name: abapAddonAssemblyKitCreateTargetVector
+        run: ./piper abapAddonAssemblyKitCreateTargetVector
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+          PIPER_addonDescriptorFileName: ${{ inputs.addonDescriptorFileName }}
+
+      - name: abapAddonAssemblyKitPublishTargetVector
+        run: ./piper abapAddonAssemblyKitPublishTargetVector
+        env:
+          PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_abapAddonAssemblyKitCookie }}
+
+      - name: Upload pipeline environment
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+          overwrite: true
+          include-hidden-files: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Stage 9 – Post
+  # Always runs — performs cleanup regardless of pipeline outcome.
+  # ────────────────────────────────────────────────────────────────────────────
+  post:
+    name: Post
+    needs: publish
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download piper binary
+        run: |
+          curl -sLo piper "https://github.com/SAP/jenkins-library/releases/latest/download/piper_linux_amd64"
+          chmod +x piper
+
+      - name: Download pipeline environment
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-env
+          path: .pipeline/
+        continue-on-error: true
+
+      - name: abapLandscapePortalUpdateAddOnProduct
+        run: ./piper abapLandscapePortalUpdateAddOnProduct
+        continue-on-error: true
+        env:
+          PIPER_user: ${{ secrets.PIPER_user }}
+          PIPER_password: ${{ secrets.PIPER_password }}
+
+      # BTP cleanup
+      - name: btpDeleteServiceBinding
+        if: ${{ inputs.btpSubaccountId != '' }}
+        run: ./piper btpDeleteServiceBinding
+        continue-on-error: true
+        env:
+          PIPER_btpApiCredentialsId: ${{ secrets.PIPER_btpApiCredentialsId }}
+          PIPER_subaccountId: ${{ inputs.btpSubaccountId }}
+          PIPER_serviceInstanceName: abap-${{ github.run_id }}
+
+      - name: btpDeleteServiceInstance
+        if: ${{ inputs.btpSubaccountId != '' }}
+        run: ./piper btpDeleteServiceInstance
+        continue-on-error: true
+        env:
+          PIPER_btpApiCredentialsId: ${{ secrets.PIPER_btpApiCredentialsId }}
+          PIPER_subaccountId: ${{ inputs.btpSubaccountId }}
+          PIPER_serviceInstanceName: abap-${{ github.run_id }}
+
+      # CF cleanup
+      - name: cloudFoundryDeleteService
+        if: ${{ inputs.cfApiEndpoint != '' }}
+        run: ./piper cloudFoundryDeleteService
+        continue-on-error: true
+        env:
+          PIPER_cfUser: ${{ secrets.PIPER_cfUser }}
+          PIPER_cfPassword: ${{ secrets.PIPER_cfPassword }}
+          PIPER_cfApiEndpoint: ${{ inputs.cfApiEndpoint }}
+          PIPER_cfOrg: ${{ inputs.cfOrg }}
+          PIPER_cfSpace: ${{ inputs.cfSpace }}

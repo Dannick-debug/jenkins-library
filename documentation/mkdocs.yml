@@ -23,6 +23,7 @@ nav:
               - 'Confirm': pipelines/abapEnvironment/stages/confirm.md
               - 'Publish': pipelines/abapEnvironment/stages/publish.md
               - 'Post': pipelines/abapEnvironment/stages/post.md
+            - 'GitHub Actions': pipelines/abapEnvironment/github-actions.md
     - 'Scenarios':
         - 'Build and Publish Add-on Products on SAP BTP, ABAP Environment': scenarios/abapEnvironmentAddons.md
         - 'Continuous Testing on SAP BTP, ABAP Environment': scenarios/abapEnvironmentTest.md
