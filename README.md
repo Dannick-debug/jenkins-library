@@ -1,53 +1,28 @@
-## ⚠️ Repository Archive Notice
+# Project "Piper": ABAP Environment Pipeline
 
-**This repository will be archived on December 31, 2026.**
+A lightweight fork of [SAP/jenkins-library](https://github.com/SAP/jenkins-library) scoped exclusively to the **ABAP Environment Pipeline** and **BTP API steps**.
 
-### What This Means
+This fork reduces maintenance overhead by removing everything unrelated to ABAP add-on build and delivery on SAP BTP, ABAP Environment.
 
-- This repository will no longer be actively maintained after the archive date
-  
-- The repository will remain available in read-only mode for reference
-  
-- No further updates, bug fixes, or pull requests will be accepted after December 31, 2026
+## What's included
 
-- Contact your SAP representative for details
+- **`abapEnvironmentPipeline`** — 11-stage pipeline for building and publishing ABAP add-on products on SAP BTP
+- **ABAP steps** (`abapAddonAssemblyKit*`, `abapEnvironment*`, `abapLandscapePortalUpdateAddOnProduct`)
+- **BTP API steps** (`btpCreateServiceBinding`, `btpCreateServiceInstance`, `btpDeleteServiceBinding`, `btpDeleteServiceInstance`)
+- **Supporting Cloud Foundry steps** used by the pipeline (`cloudFoundryCreateServiceKey`, `cloudFoundryDeleteService`)
 
-### Timeline
+## What's removed
 
-- **Now - December 31, 2026**: Limited maintenance (critical issues only)
+All steps, pipeline templates, documentation, and tests unrelated to the ABAP environment: general-purpose pipelines (CAP, UI5, MTA, etc.), CF application deployment steps, TMS, gCTS, Neo, and all associated Groovy utility classes.
 
-- **January 1, 2027**: Repository becomes read-only/archived
+## Documentation
 
-[![Maintainability](https://api.codeclimate.com/v1/badges/0e6a23344616e29b4ed0/maintainability)](https://codeclimate.com/github/SAP/jenkins-library/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/0e6a23344616e29b4ed0/test_coverage)](https://codeclimate.com/github/SAP/jenkins-library/test_coverage)
-[![Go Report Card](https://goreportcard.com/badge/github.com/SAP/jenkins-library)](https://goreportcard.com/report/github.com/SAP/jenkins-library)
-[![REUSE status](https://api.reuse.software/badge/github.com/SAP/jenkins-library)](https://api.reuse.software/info/github.com/SAP/jenkins-library)
+See the `documentation/` folder. Build locally with:
 
-## Project Piper Repository
+```sh
+docker run --rm -it -p 8000:8000 -v "${PWD}/documentation:/docs" squidfunk/mkdocs-material:8.5.11
+```
 
-The Project "Piper" offers default pipelines to easily implement CI/CD processes integrating SAP systems. The corresponding "Shared Library" provides a set of "steps" to build your own scenarios beyond defaults.
+## Upstream
 
-## User Documentation
-
-If you want to view the User Documentation of Project Piper please follow this [Piper Pages Link][piper-library-user-doc].
-
-## Known Issues
-
-A list of known issues is available on the [GitHub issues page of this project][piper-library-issues].
-
-## How to obtain support
-
-Feel free to open new issues for feature requests, bugs or general feedback on
-the [GitHub issues page of this project][piper-library-issues].
-
-Register to our [google group][google-group] in order to get updates or for asking questions.
-
-## Contributing
-
-Read and understand our [contribution guidelines][piper-library-contribution]
-before opening a pull request.
-
-[piper-library-user-doc]: https://sap.github.io/jenkins-library/
-[piper-library-issues]: https://github.com/SAP/jenkins-library/issues
-[piper-library-contribution]: CONTRIBUTING.md
-[google-group]: https://groups.google.com/forum/#!forum/project-piper
+This fork tracks [SAP/jenkins-library](https://github.com/SAP/jenkins-library). Upstream changes to ABAP/BTP steps are periodically merged; unrelated changes are not.
