@@ -2,36 +2,32 @@
 
 ![ABAP Environment Pipeline](../../images/abapPipelineOverviewFull.png)
 
-The goal of the ABAP environment pipeline is to enable Continuous Integration for the SAP BTP, ABAP environment, also known as Steampunk.
-The pipeline contains several stages and supports different scenarios. The general idea is that the user can choose a subset of these stages, which fits her/his use case, for example running nightly ATC checks and AUnit tests or building an ABAP add-on for Steampunk.
+The ABAP Environment Pipeline enables Continuous Integration for SAP BTP, ABAP Environment (Steampunk). It is orchestrated by a GitHub Actions reusable workflow that calls the `piper` CLI binary for each step.
 
 ## Scenarios
 
-The following scenarios are available.
-
 ### Continuous Testing
 
-This scenario is intended to be used improve the software quality through continuous checks and testing. Please refer to the [scenario documentation](../../scenarios/abapEnvironmentTest.md) for more information.
+Run nightly ATC checks and AUnit tests against a permanent or transient ABAP system. See the [scenario documentation](../../scenarios/abapEnvironmentTest.md).
 
-### Building ABAP Add-ons for Steampunk
+### Building ABAP Add-ons
 
-This scenario is intended for SAP partners, who want to offer a Software as a Service (SaaS) solution on Steampunk. This is currently the only use case for building ABAP Add-ons and, more specifically, the stages "Initial Checks", "Build", "Integration Tests", "Confirm" and "Publish". Please refer to the [scenario documentation](../../scenarios/abapEnvironmentAddons.md) for more information.
+Build and publish ABAP add-on products for SAP partners delivering SaaS solutions on Steampunk. See the [scenario documentation](../../scenarios/abapEnvironmentAddons.md).
 
 ## Pipeline Stages
 
-The following stages and steps are part of the pipeline:
+| Stage | GitHub Actions job | Steps |
+|-------|--------------------|-------|
+| Init | `init` | `piper initRunStageConfiguration` |
+| [Initial Checks](stages/initialChecks.md) | `initial-checks` | `abapAddonAssemblyKitCheck` |
+| [Prepare System](stages/prepareSystem.md) | `prepare-system` | `btpCreateServiceInstance`, `btpCreateServiceBinding` (BTP) or `abapEnvironmentCreateSystem`, `cloudFoundryCreateServiceKey` (CF) |
+| [Clone Repositories](stages/cloneRepositories.md) | `clone-repositories` | `abapEnvironmentCloneGitRepo` |
+| [ATC](stages/test.md) | `atc` | `abapEnvironmentRunATCCheck` |
+| [AUnit](stages/test.md) | `aunit` _(parallel with atc)_ | `abapEnvironmentRunAUnitTest` |
+| [Build](stages/build.md) | `build` | `abapAddonAssemblyKitReserveNextPackages`, `abapEnvironmentAssemblePackages`, `abapEnvironmentAssembleConfirm`, `abapAddonAssemblyKitRegisterPackages`, `abapAddonAssemblyKitReleasePackages` |
+| [Integration Tests](stages/integrationTest.md) | `integration-tests` | `abapEnvironmentRunATCCheck` |
+| [Confirm](stages/confirm.md) | `confirm` | manual gate via GitHub Environment |
+| [Publish](stages/publish.md) | `publish` | `abapAddonAssemblyKitCreateTargetVector`, `abapAddonAssemblyKitPublishTargetVector` |
+| [Post](stages/post.md) | `post` _(always runs)_ | `abapLandscapePortalUpdateAddOnProduct`, `btpDeleteServiceBinding`, `btpDeleteServiceInstance` (BTP) or `cloudFoundryDeleteService` (CF) |
 
-| Stage                    | Steps |
-|--------------------------|-------|
-| Init                     | -     |
-| [Initial Checks](stages/initialChecks.md)           | [abapAddonAssemblyKitCheckPV](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitCheckPV/), [abapAddonAssemblyKitCheckCVs](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitCheckCVs/)|
-| [Prepare System](stages/prepareSystem.md)           | [abapEnvironmentCreateSystem](https://sap.github.io/jenkins-library/steps/abapEnvironmentCreateSystem/) |
-| [Clone Repositories](stages/cloneRepositories.md)       | [cloudFoundryCreateServiceKey](https://sap.github.io/jenkins-library/steps/cloudFoundryCreateServiceKey/), [abapEnvironmentPullGitRepo](https://sap.github.io/jenkins-library/steps/abapEnvironmentPullGitRepo/)|
-| [Test](stages/test.md)                      | [cloudFoundryCreateServiceKey](https://sap.github.io/jenkins-library/steps/cloudFoundryCreateServiceKey/), [abapEnvironmentRunATCCheck](https://sap.github.io/jenkins-library/steps/abapEnvironmentRunATCCheck/), [abapEnvironmentRunAUnitTest](https://sap.github.io/jenkins-library/steps/abapEnvironmentRunAUnitTest/) |
-| [Build](stages/build.md)                    | [cloudFoundryCreateServiceKey](https://sap.github.io/jenkins-library/steps/cloudFoundryCreateServiceKey/), [abapAddonAssemblyKitReserveNextPackages](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitReserveNextPackages/), [abapEnvironmentAssemblePackages](https://sap.github.io/jenkins-library/steps/abapEnvironmentAssemblePackages/), [abapAddonAssemblyKitRegisterPackages](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitRegisterPackages/), [abapEnvironmentAssembleConfirm](https://sap.github.io/jenkins-library/steps/abapEnvironmentAssembleConfirm/), [abapAddonAssemblyKitReleasePackages](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitReleasePackages/), [abapAddonAssemblyKitCreateTargetVector](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitCreateTargetVector/), [abapAddonAssemblyKitPublishTargetVector](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitPublishTargetVector/)|
-| [Integration Tests](stages/integrationTest.md)        | [cloudFoundryCreateService](https://sap.github.io/jenkins-library/steps/cloudFoundryCreateService/)|
-| [Confirm](stages/confirm.md)                  | -     |
-| [Publish](stages/publish.md)                  | [abapAddonAssemblyKitPublishTargetVector](https://sap.github.io/jenkins-library/steps/abapAddonAssemblyKitPublishTargetVector/)|
-| [Post](stages/post.md)                     | [cloudFoundryDeleteService](https://sap.github.io/jenkins-library/steps/cloudFoundryDeleteService/)|
-
-Please navigate to a stage or step to learn more details. [Here](configuration.md) you can find a step-by-step example on how to configure your pipeline.
+For configuration details see the [configuration guide](configuration.md) and the [GitHub Actions setup guide](github-actions.md).

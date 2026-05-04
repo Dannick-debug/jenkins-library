@@ -1,55 +1,59 @@
-# Vault for Pipeline Secrets
+# Secrets Management
 
-The Piper ABAP Environment Pipeline supports fetching secrets from [HashiCorp Vault](https://www.hashicorp.com/products/vault) (KV engine v1 and v2) instead of storing them as Jenkins credentials.
+All secrets are passed to the `piper` CLI as environment variables with a `PIPER_` prefix. The `piper` binary reads them automatically — no explicit flags needed.
 
-Parameters that support Vault are marked with the Vault label in the step documentation.
+## GitHub repository secrets (recommended)
 
-## Authentication
+Store credentials as [encrypted secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets) in your GitHub repository under **Settings → Secrets and variables → Actions**.
 
-### AppRole (recommended)
+The reusable workflow forwards them to each job via the `secrets:` block in the consumer workflow:
 
-1. Enable AppRole authentication in your Vault instance.
-2. Create an AppRole role for Piper and assign the necessary policies.
-3. Store the **AppRole ID** and **AppRole Secret ID** as Jenkins `Secret Text` credentials.
-4. Reference them in your pipeline configuration via `vaultAppRoleTokenCredentialsId` and `vaultAppRoleSecretTokenCredentialsId`.
+```yaml
+secrets:
+  PIPER_abapAddonAssemblyKitCookie: ${{ secrets.PIPER_ABAP_ADDON_ASSEMBLY_KIT_COOKIE }}
+  PIPER_user: ${{ secrets.PIPER_USER }}
+  PIPER_password: ${{ secrets.PIPER_PASSWORD }}
+```
 
-Piper will rotate the SecretID automatically, which is not possible with token authentication.
+## HashiCorp Vault (optional)
 
-### Token
-
-Store the Vault token as a Jenkins `Secret Text` credential and reference it via `vaultTokenCredentialsId`.
-
-Alternatively, pass the token directly as the environment variable `PIPER_vaultToken`.
-
-## Pipeline Configuration
-
-Add the following to your `.pipeline/config.yml`:
+The `piper` binary can fetch secrets from a Vault KV engine (v1 or v2) at runtime. Configure it in `.pipeline/config.yml`:
 
 ```yaml
 general:
   vaultServerUrl: 'https://your-vault-server'
-  vaultNamespace: 'your-namespace'   # omit if not using namespaces
-  vaultPath: 'kv/abap-pipeline'      # path where secrets are stored
+  vaultNamespace: 'your-namespace'
+  vaultPath: 'kv/abap-pipeline'
 ```
 
-Piper looks up secrets in this order:
+Authenticate with AppRole (recommended — supports automatic SecretID rotation):
+
+```yaml
+general:
+  vaultAppRoleTokenCredentialsId: vault-approle-id
+  vaultAppRoleSecretTokenCredentialsId: vault-approle-secret
+```
+
+Or with a token via the environment variable `PIPER_vaultToken`.
+
+### Vault lookup order
+
+Piper resolves secrets in the following order:
 
 1. `<vaultPath>/<secretPath>`
 2. `<vaultBasePath>/<vaultPipelineName>/<secretPath>`
 3. `<vaultBasePath>/GROUP-SECRETS/<secretPath>`
 
-## Controlling Secret Lookup
+### Options
 
-### Prevent overwriting explicit config values
-
-By default, Vault values overwrite parameters set in `config.yml`. To disable this:
+Prevent Vault from overwriting values already set in `config.yml`:
 
 ```yaml
 general:
   vaultDisableOverwrite: true
 ```
 
-### Skip Vault for specific steps
+Skip Vault for a specific step:
 
 ```yaml
 steps:
@@ -57,9 +61,7 @@ steps:
     skipVault: true
 ```
 
-## Fetching General Purpose Credentials
-
-Vault can supply arbitrary credentials to any step, for example for custom extensions:
+Fetch arbitrary credentials from Vault and expose them as environment variables to a step:
 
 ```yaml
 steps:
@@ -68,12 +70,4 @@ steps:
     vaultCredentialKeys: ['myUser', 'myPassword']
 ```
 
-The values are exposed as environment variables prefixed by `PIPER_VAULTCREDENTIAL_` (e.g. `PIPER_VAULTCREDENTIAL_MYUSER`). A Base64-encoded variant is also provided as `PIPER_VAULTCREDENTIAL_MYUSER_BASE64`.
-
-To use a custom prefix:
-
-```yaml
-    vaultCredentialEnvPrefix: 'ABAP_CRED_'
-```
-
-Enable verbose logging for Vault lookups with `verbose: true`.
+Values are available as `PIPER_VAULTCREDENTIAL_MYUSER` and `PIPER_VAULTCREDENTIAL_MYUSER_BASE64`.

@@ -1,34 +1,45 @@
 # Infrastructure Overview
 
-This section covers the infrastructure required to run the ABAP Environment Pipeline.
+The ABAP Environment Pipeline runs entirely on **GitHub Actions**. No Jenkins instance, no Docker daemon on a build server, and no Groovy runtime are required.
 
-## Jenkins
+## What you need
 
-The ABAP Environment Pipeline runs on Jenkins. You need a Jenkins instance with:
-
-- The [Piper shared library](https://github.com/SAP/jenkins-library) configured as a global pipeline library named `piper-lib-os`
-- Docker installed on the Jenkins agent (most steps execute in Docker containers)
-- Credentials configured for:
-  - SAP BTP service account (for BTP API steps)
-  - Cloud Foundry credentials (for CF-based system provisioning)
-  - ABAP communication user credentials
-
-See the [Custom Jenkins Setup](customjenkins.md) guide for detailed installation instructions.
+| Requirement | Details |
+|-------------|---------|
+| GitHub repository | Hosts your `addon.yml`, `repositories.yml`, and `.pipeline/config.yml` |
+| GitHub Actions | Enabled on the repository (free for public repos, included in GitHub plans for private) |
+| GitHub Environment | Named `production` (or custom) with required reviewers for the manual Confirm gate |
+| SAP BTP, ABAP Environment | Target system — provisioned via BTP service API or Cloud Foundry |
+| AAKaaS access | Authentication cookie for the ABAP Add-on Assembly Kit as a Service |
+| ABAP communication user | User/password for the ABAP system steps |
 
 ## Credentials
 
-The pipeline requires credentials stored in Jenkins or fetched from Vault:
+All credentials are stored as **GitHub repository secrets** and passed to the `piper` binary via `PIPER_` prefixed environment variables. No secrets are written to disk.
 
-| Credential | Used by |
-| ---------- | ------- |
-| CF username/password | `abapEnvironmentCreateSystem`, `cloudFoundryCreateServiceKey`, `cloudFoundryDeleteService` |
-| ABAP communication user | All `abapEnvironment*` steps communicating with the ABAP system |
-| BTP service account | `btpCreate/DeleteServiceInstance/Binding` |
+| Secret | Used by |
+|--------|---------|
+| `PIPER_ABAP_ADDON_ASSEMBLY_KIT_COOKIE` | All `abapAddonAssemblyKit*` steps |
+| `PIPER_USER` / `PIPER_PASSWORD` | All `abapEnvironment*` steps |
+| `PIPER_CF_USER` / `PIPER_CF_PASSWORD` | CF provisioning path |
+| `PIPER_BTP_API_CREDENTIALS_ID` | BTP provisioning path |
 
-## Vault (optional)
+Add secrets at **Settings → Secrets and variables → Actions**.
 
-Secrets can be fetched directly from [HashiCorp Vault](https://www.hashicorp.com/products/vault) instead of Jenkins credentials. See the [Vault for Pipeline Secrets](vault.md) guide.
+## Confirm gate (GitHub Environment)
 
-## Docker
+The pipeline pauses before publishing and waits for manual approval. This is implemented using a [GitHub Environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) with required reviewers.
 
-Most steps pull their required tools from Docker Hub as needed — no manual installation required. If you hit Docker Hub rate limits, see the [Docker Rate Limit](docker-rate-limit.md) guide.
+1. Go to **Settings → Environments → New environment**
+2. Name it `production` (or whatever you set as `confirmEnvironment` in the workflow)
+3. Add **Required reviewers** under deployment protection rules
+
+Reviewers receive a notification and can approve or reject directly from the GitHub UI.
+
+## Common pipeline environment (CPE)
+
+The `piper` binary persists state between steps in the `.pipeline/` directory. Because each GitHub Actions job runs on an isolated runner, the reusable workflow uploads `.pipeline/` as an artifact after every job and downloads it at the start of the next. This is handled automatically — no configuration required.
+
+## The piper binary
+
+The `piper` Linux binary is downloaded at the start of each job directly from the GitHub releases page. No pre-installation on the runner is needed. See the [CLI reference](../cli/index.md) for available commands.
