@@ -1,9 +1,0 @@
-{
-    "auths": {
-        "my.registry:55555": {
-            "username": "testuser",
-            "password": "testpassword",
-            "auth": "dGVzdHVzZXI6dGVzdHBhc3N3b3Jk"
-        }
-    }
-}

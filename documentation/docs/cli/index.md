@@ -1,23 +1,68 @@
-# Project "Piper" CLI
+# Piper CLI
 
-The CLI is built using the go programming language and thus is distributed in a single binary file for Linux.
+The Piper CLI is the Go binary that implements all ABAP Environment Pipeline and BTP API steps. Jenkins calls it under the hood for each step, but you can also run it directly on the command line for local testing.
 
-The latest released version can be downloaded via `wget https://github.com/SAP/jenkins-library/releases/latest/download/piper`.
+## Download
 
-Specific versions an be downloaded from the [GitHub releases](https://github.com/SAP/jenkins-library/releases) page.
+The latest released version can be downloaded via:
+
+```sh
+wget https://github.com/SAP/jenkins-library/releases/latest/download/piper
+chmod +x piper
+```
+
+Specific versions are available on the [GitHub releases](https://github.com/SAP/jenkins-library/releases) page.
 
 Once available in `$PATH`, it is ready to use.
 
-To verify the version you got, run `piper version`.
-To read the online help, run `piper help`.
+## Verify and explore
 
-!!! hint "Use the shell completion"
-    For the purpose of interactive usage on the command line, we recommend to setup shell completion scripts.
-    Run `piper completion --help` for information on how to set it up for your shell.
-    This might need to be updated from time to time to reflect new commands added to piper.
+```sh
+piper version        # print the version
+piper help           # list all available commands
+piper <step> --help  # show parameters for a specific step
+```
 
-!!! note "Linux only (as of now)"
-    Since this is a binary compiled for Linux systems, you won't be able to use it on macOS or Windows systems.
-    You might try running it inside Docker on those systems.
+## Available steps
 
-If you're interested in using it with GitHub Actions, see [the Project "Piper" Action](https://github.com/SAP/project-piper-action) which makes the tool more convinient to use.
+All ABAP Environment Pipeline steps are available as sub-commands:
+
+| Command | Description |
+| ------- | ----------- |
+| `abapEnvironmentBuild` | Executes an ABAP build on SAP BTP |
+| `abapEnvironmentCheckoutBranch` | Checks out a branch in an ABAP Git repository |
+| `abapEnvironmentCloneGitRepo` | Clones a Git repository into an ABAP system |
+| `abapEnvironmentCreateSystem` | Creates a new ABAP environment system |
+| `abapEnvironmentCreateTag` | Creates a Git tag in an ABAP system |
+| `abapEnvironmentPullGitRepo` | Pulls a Git repository in an ABAP system |
+| `abapEnvironmentPushATCSystemConfig` | Pushes an ATC system configuration |
+| `abapEnvironmentRunATCCheck` | Runs ATC checks |
+| `abapEnvironmentRunAUnitTest` | Runs AUnit tests |
+| `abapEnvironmentAssemblePackages` | Assembles add-on packages |
+| `abapEnvironmentAssembleConfirm` | Confirms assembly of add-on packages |
+| `abapAddonAssemblyKitCheck` | Checks the add-on descriptor |
+| `abapAddonAssemblyKitCheckCVs` | Checks component versions |
+| `abapAddonAssemblyKitCheckPV` | Checks the product version |
+| `abapAddonAssemblyKitCreateTargetVector` | Creates the target vector |
+| `abapAddonAssemblyKitPublishTargetVector` | Publishes the target vector |
+| `abapAddonAssemblyKitRegisterPackages` | Registers add-on packages |
+| `abapAddonAssemblyKitReleasePackages` | Releases add-on packages |
+| `abapAddonAssemblyKitReserveNextPackages` | Reserves the next add-on packages |
+| `abapLandscapePortalUpdateAddOnProduct` | Updates an add-on product via Landscape Portal |
+| `btpCreateServiceInstance` | Creates a BTP service instance |
+| `btpCreateServiceBinding` | Creates a BTP service binding |
+| `btpDeleteServiceInstance` | Deletes a BTP service instance |
+| `btpDeleteServiceBinding` | Deletes a BTP service binding |
+| `cloudFoundryCreateServiceKey` | Creates a Cloud Foundry service key |
+| `cloudFoundryDeleteService` | Deletes a Cloud Foundry service |
+
+## Shell completion
+
+For interactive use, set up shell completion:
+
+```sh
+piper completion --help
+```
+
+!!! note "Linux only"
+    The binary is compiled for Linux. On macOS or Windows, run it inside Docker.

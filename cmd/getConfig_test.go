@@ -57,7 +57,7 @@ func TestConfigCommand(t *testing.T) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Success case", func(t *testing.T) {
 			configOptions.OpenFile = configOpenFileMock
-			configOptions.StepName = "githubCreateIssue"
+			configOptions.StepName = "abapEnvironmentBuild"
 			cmd.Run(cmd, []string{})
 		})
 	})

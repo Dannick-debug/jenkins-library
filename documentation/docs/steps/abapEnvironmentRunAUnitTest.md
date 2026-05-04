@@ -1,6 +1,41 @@
-# ${docGenStepName}
+# abapEnvironmentRunAUnitTest
 
-## ${docGenDescription}
+Runs an AUnit Test
+
+
+## Description
+
+This step is for triggering an [AUnit](https://help.sap.com/viewer/65de2977205c403bbc107264b8eccf4b/Cloud/en-US/cdd19e3a5c49458291ec65d8d86e2b9a.html) test run on an SAP BTP ABAP Environment system.
+Please provide either of the following options:
+
+* The host and credentials of the BTP ABAP Environment system itself. The credentials must be configured for the Communication Scenario SAP_COM_0735.
+* The Cloud Foundry parameters (API endpoint, organization, space), credentials, the service instance for the ABAP service and the service key for the Communication Scenario SAP_COM_0735.
+* Only provide one of those options with the respective credentials. If all values are provided, the direct communication (via host) has priority.
+
+Regardless of the option you chose, please make sure to provide the object set containing the objects that you want to be checked analog to the examples listed on this page.
+
+
+## Usage
+
+We recommend to define values of [step parameters](#parameters) via [.pipeline/config.yml file](../configuration.md).<br />In this case, calling the step is essentially reduced to defining the step name.<br />Calling the step can be done either in an orchestrator specific way (e.g. via a Jenkins library step) or on the command line.
+
+!!! tip ""
+
+    === "Jenkins"
+
+        ```groovy
+        library('piper-lib-os')
+
+        abapEnvironmentRunAUnitTest script: this
+        ```
+
+    === "Command Line"
+
+        ```sh
+        piper abapEnvironmentRunAUnitTest
+        ```
+
+
 
 !!! Currently the Object Set configuration is limited to the usage of Multi Property Sets. Please note that other sets besides the Multi Property Set will not be included in the ABAP Unit test runs. You can see an example of the Multi Property Sets with all configurable properties. However, we strongly reccommend to only specify packages and software components like in the first two examples of the section `AUnit config file example`.
 
@@ -11,11 +46,594 @@
 * Regardless if you chose an ABAP endpoint directly or reading a Cloud Foundry Service Key, you have to provide the object set containing the objects you want to be checked in an AUnit run in a .yml or .yaml file. This file must be stored in the same folder as the Jenkinsfile defining the pipeline.
 * Make sure that the objects contained in the object set are present in the configured system in order to run the check. Please make sure that you have created or pulled the respective software components and/or packages including the test classes and objects in the SAP BTP, ABAP environment system, that should be checked.
 
-## ${docGenParameters}
+## Parameters
 
-## ${docGenConfiguration}
+### Overview - Step
 
-## ${docJenkinsPluginDependencies}
+| Name | Mandatory | Additional information |
+| ---- | --------- | ---------------------- |
+| [password](#password) | **(yes)** | ![Secret](https://img.shields.io/badge/-Secret-yellowgreen) pass via ENV or Jenkins credentials ([`abapCredentialsId`](#abapcredentialsid)) |
+| [script](#script) | **(yes)** | ![Jenkins only](https://img.shields.io/badge/-Jenkins%20only-yellowgreen) reference to Jenkins main pipeline script |
+| [username](#username) | **(yes)** | ![Secret](https://img.shields.io/badge/-Secret-yellowgreen) pass via ENV or Jenkins credentials ([`abapCredentialsId`](#abapcredentialsid)) |
+| [aUnitConfig](#aunitconfig) | no |  |
+| [aUnitResultsFileName](#aunitresultsfilename) | no |  |
+| [cfApiEndpoint](#cfapiendpoint) | no |  |
+| [cfOrg](#cforg) | no |  |
+| [cfServiceInstance](#cfserviceinstance) | no |  |
+| [cfServiceKeyName](#cfservicekeyname) | no |  |
+| [cfSpace](#cfspace) | no |  |
+| [evaluateResults](#evaluateresults) | no |  |
+| [generateHTML](#generatehtml) | no |  |
+| [host](#host) | no |  |
+| [idp](#idp) | no |  |
+| [repositories](#repositories) | no |  |
+| [serviceBindingName](#servicebindingname) | no |  |
+| [serviceInstanceName](#serviceinstancename) | no |  |
+| [subaccount](#subaccount) | no |  |
+| [subdomain](#subdomain) | no |  |
+| [url](#url) | no |  |
+| [verbose](#verbose) | no | activates debug output |
+
+### Overview - Execution Environment
+
+!!! note "Orchestrator-specific only"
+
+    These parameters are relevant for orchestrator usage and not considered when using the command line option.
+
+| Name | Mandatory | Additional information |
+| ---- | --------- | ---------------------- |
+| [containerCommand](#containercommand) | no | ![Jenkins only](https://img.shields.io/badge/-Jenkins%20only-yellowgreen) |
+| [containerShell](#containershell) | no | ![Jenkins only](https://img.shields.io/badge/-Jenkins%20only-yellowgreen) |
+| [dockerEnvVars](#dockerenvvars) | no |  |
+| [dockerImage](#dockerimage) | no |  |
+| [dockerName](#dockername) | no |  |
+| [dockerOptions](#dockeroptions) | no |  |
+| [dockerPullImage](#dockerpullimage) | no |  |
+| [dockerVolumeBind](#dockervolumebind) | no | ![Jenkins only](https://img.shields.io/badge/-Jenkins%20only-yellowgreen) |
+| [dockerWorkspace](#dockerworkspace) | no | ![Jenkins only](https://img.shields.io/badge/-Jenkins%20only-yellowgreen) |
+
+### Details
+
+#### aUnitConfig
+
+Path to a YAML configuration file for the object set to be checked during the AUnit test run
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_aUnitConfig` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9744; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### aUnitResultsFileName
+
+Specifies output file name for the results from the AUnit run.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `AUnitResults.xml` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9744; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### cfApiEndpoint
+
+Cloud Foundry API endpoint
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `cloudFoundry/apiEndpoint` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_cfApiEndpoint` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### cfOrg
+
+Cloud Foundry org
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `cloudFoundry/org` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_cfOrg` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### cfServiceInstance
+
+Parameter of ServiceInstance Name to delete Cloud Foundry Service
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `cloudFoundry/serviceInstance` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_cfServiceInstance` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### cfServiceKeyName
+
+Parameter of Cloud Foundry Service Key to be created
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - `cloudFoundry/serviceKey`<br />- `cloudFoundry/serviceKeyName`<br />- `cfServiceKey` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_cfServiceKeyName` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### cfSpace
+
+Cloud Foundry Space
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `cloudFoundry/space` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_cfSpace` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### containerCommand
+
+**Jenkins-specific:** Used for proper environment setup.
+
+Kubernetes only: Allows to specify start command for container created with dockerImage parameter to overwrite Piper default (/usr/bin/tail -f /dev/null).
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### containerShell
+
+**Jenkins-specific:** Used for proper environment setup.
+
+Allows to specify the shell to be executed for container with containerName.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerEnvVars
+
+Environment variables to set in the container, e.g. [http_proxy: "proxy:8080"].
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `map[string]string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerImage
+
+Name of the docker image that should be used. If empty, Docker is not used and the command is executed directly on the Jenkins system.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `ppiper/cf-cli:latest` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerName
+
+Kubernetes only: Name of the container launching dockerImage. SideCar only: Name of the container in local network.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `cf` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerOptions
+
+Docker options to be set when starting the container.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `[]string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerPullImage
+
+Set this to 'false' to bypass a docker image pull. Useful during development process. Allows testing of images which are available in the local registry only.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `bool` |
+| Mandatory | no |
+| Default | `true` |
+| Possible values | - `true`<br />- `false` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerVolumeBind
+
+**Jenkins-specific:** Used for proper environment setup.
+
+Volumes that should be mounted into the docker container.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `map[string]string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### dockerWorkspace
+
+**Jenkins-specific:** Used for proper environment setup.
+
+Kubernetes only: Specifies a dedicated user home directory for the container which will be passed as value for environment variable `HOME`.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### evaluateResults
+
+Evaluation will parse the result file and fail the step execution in case of unsuccessful (error/failure) ABAP Unit test cases
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `bool` |
+| Mandatory | no |
+| Default | `false` |
+| Possible values | - `true`<br />- `false` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### generateHTML
+
+Specifies whether the AUnit results should also be generated as an HTML document
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `bool` |
+| Mandatory | no |
+| Default | `false` |
+| Possible values | - `true`<br />- `false` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### host
+
+Specifies the host address of the SAP BTP ABAP Environment system
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_host` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### idp
+
+BTP Identity Provider
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/idp` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_idp` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### password
+
+Password for either the Cloud Foundry API or the Communication Arrangement for SAP_COM_0735
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | **yes** |
+| Default | `$PIPER_password` (if set) |
+| Secret | **yes** |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9744; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | Jenkins credential id:<br />&nbsp;&nbsp;id: [`abapCredentialsId`](#abapcredentialsid)<br />&nbsp;&nbsp;reference to: `password`<br /> |
+
+
+#### repositories
+
+Specifies a YAML file containing the repositories configuration
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_repositories` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### script
+
+The common script environment of the Jenkinsfile running. Typically the reference to the script calling the pipeline step is provided with the `this` parameter, as in `script: this`. This allows the function to access the `commonPipelineEnvironment` for retrieving, e.g. configuration parameters.
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `Jenkins Script` |
+| Mandatory | **yes** |
+| Default |  |
+| Secret | no |
+| Configuration scope | <ul><li>&#9744; parameter</li><li>&#9744; general</li><li>&#9744; steps</li><li>&#9744; stages</li></ul> |
+| Resource references | none |
+
+
+#### serviceBindingName
+
+BTP service binding name
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/bindingName` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_serviceBindingName` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### serviceInstanceName
+
+BTP service instance name
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/instanceName` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_serviceInstanceName` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### subaccount
+
+BTP Subaccount name
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/subaccount` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_subaccount` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### subdomain
+
+BTP Global Account subdomain
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/subdomain` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_subdomain` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### url
+
+BTP CLI API endpoint
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `btp/url` |
+| Type | `string` |
+| Mandatory | no |
+| Default | `$PIPER_url` (if set) |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### username
+
+User for either the Cloud Foundry API or the Communication Arrangement for SAP_COM_0735
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `string` |
+| Mandatory | **yes** |
+| Default | `$PIPER_username` (if set) |
+| Secret | **yes** |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9744; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | Jenkins credential id:<br />&nbsp;&nbsp;id: [`abapCredentialsId`](#abapcredentialsid)<br />&nbsp;&nbsp;reference to: `username`<br /> |
+
+
+#### verbose
+
+verbose output
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | - |
+| Type | `bool` |
+| Mandatory | no |
+| Default | `false` |
+| Possible values | - `true`<br />- `false` |
+| Secret | no |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+| Resource references | none |
+
+
+#### abapCredentialsId
+
+Jenkins credentials ID containing user and password to authenticate to the BTP ABAP Environment system or the Cloud Foundry API
+
+[back to overview](#parameters)
+
+| Scope | Details |
+| ---- | --------- |
+| Aliases | `cfCredentialsId` |
+| Type | `string` |
+| Configuration scope | <ul><li>&#9746; parameter</li><li>&#9746; general</li><li>&#9746; steps</li><li>&#9746; stages</li></ul> |
+
+
+
+
+
+
+
 
 ## Examples
 

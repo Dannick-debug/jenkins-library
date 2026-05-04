@@ -16,15 +16,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type writePipelineEnvOptions struct {
+	Password string `json:"password,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+
 // WritePipelineEnv Serializes the commonPipelineEnvironment JSON to disk
 // Can be used in two modes:
 // 1. JSON serialization: processes JSON input from stdin or PIPER_pipelineEnv environment variable
 // 2. Direct value: writes a single key-value pair using the --value flag (format: key=value)
 func WritePipelineEnv() *cobra.Command {
-	var stepConfig artifactPrepareVersionOptions
+	var stepConfig writePipelineEnvOptions
 	var encryptedCPE bool
 	var directValue string
-	metadata := artifactPrepareVersionMetadata()
+	metadata := config.StepData{}
 
 	writePipelineEnv := &cobra.Command{
 		Use:   "writePipelineEnv",

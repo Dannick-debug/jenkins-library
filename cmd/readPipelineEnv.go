@@ -13,11 +13,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type readPipelineEnvOptions struct {
+	Password string `json:"password,omitempty"`
+	Username string `json:"username,omitempty"`
+}
+
 // ReadPipelineEnv reads the commonPipelineEnvironment from disk and outputs it as JSON
 func ReadPipelineEnv() *cobra.Command {
-	var stepConfig artifactPrepareVersionOptions
+	var stepConfig readPipelineEnvOptions
 	var encryptedCPE bool
-	metadata := artifactPrepareVersionMetadata()
+	metadata := config.StepData{}
 
 	readPipelineEnvCmd := &cobra.Command{
 		Use:   "readPipelineEnv",
